@@ -2,24 +2,15 @@ package com.yourname.farlandsfarther.mixin;
 
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
-import org.spongepowered.asm.mixin.injection.Inject;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
-import net.minecraft.world.border.WorldBorder;
+import org.spongepowered.asm.mixin.injection.Redirect;
+import net.minecraft.client.network.ClientPlayerEntity;
 
-/**
- * Prevent vanilla world border sizing/clamping from interfering.
- * Some world border setters may be called during initialization; we can override size.
- */
-@Mixin(WorldBorder.class)
-public class WorldBorderMixin {
-
-    @Inject(method = "<init>", at = @At("TAIL"))
-    private void onInit(CallbackInfo ci) {
-        try {
-            // set size enormously high — effectively disabling vanilla border clamp.
-            ((WorldBorder)(Object)this).setSize(Double.MAX_VALUE / 4.0); // avoid Infinity
-        } catch (Throwable t) {
-            // ignore if not allowed on server-side init path
-        }
+@Mixin(ClientPlayerEntity.class)
+public class EntityMovementMixin {
+    @Redirect(method = "updatePosition", at = @At(value = "INVOKE", target = "Lnet/minecraft/util/math/MathHelper;clamp(DDD)D"))
+    private double bypassClamp(double value, double min, double max) {
+        double hardLimit = 1e12;
+        if (Double.isFinite(value) && Math.abs(value) < hardLimit) return value;
+        return Math.signum(value) * hardLimit;
     }
 }
